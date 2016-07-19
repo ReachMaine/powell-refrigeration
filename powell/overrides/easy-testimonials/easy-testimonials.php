@@ -4,7 +4,7 @@ Plugin Name: Easy Testimonials
 Plugin URI: https://goldplugins.com/our-plugins/easy-testimonials-details/
 Description: Easy Testimonials - Provides custom post type, shortcode, sidebar widget, and other functionality for testimonials.
 Author: Gold Plugins
-Version: 1.33
+Version: 1.37.2
 Author URI: https://goldplugins.com
 Text Domain: easy-testimonials
 
@@ -24,7 +24,6 @@ You should have received a copy of the GNU General Public License
 along with Easy Testimonials .  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* mods:  30Mar2016 zig - use medium as image size for testimonials */
 global $easy_t_footer_css_output;
 
 require_once('include/lib/lib.php');
@@ -48,8 +47,6 @@ function easy_testimonials_setup_js() {
 	);
 
 	// register the grid-height script, but only enqueue it later, when/if we see the testimonials_grid shortcode with the auto_height option on
-	$recaptcha_lang = get_option('easy_t_recaptcha_lang', '');
-	$recaptcha_js_url = 'https://www.google.com/recaptcha/api.js' . ( !empty($recaptcha_lang) ? '?hl='.urlencode($recaptcha_lang) : '' );
 	wp_register_script(
 			'easy-testimonials-grid',
 			plugins_url('include/js/easy-testimonials-grid.js', __FILE__),
@@ -58,7 +55,7 @@ function easy_testimonials_setup_js() {
 	
 	if(!$disable_cycle2){
 		wp_enqueue_script(
-			'cycle2',
+			'gp_cycle2',
 			plugins_url('include/js/jquery.cycle2.min.js', __FILE__),
 			array( 'jquery' ),
 			false,
@@ -112,14 +109,18 @@ function easy_testimonials_setup_css() {
 
 	// enqueue Pro CSS files
 	if(isValidKey()) {
-		//five star ratings
-		wp_register_style( 'easy_testimonial_rateit_style', plugins_url('include/css/rateit.css', __FILE__) );
-		wp_enqueue_style( 'easy_testimonial_rateit_style' );
-		
-		//pro themes
-		wp_register_style( 'easy_testimonials_pro_styles', plugins_url('include/css/easy_testimonials_pro.css', __FILE__) );
-		wp_enqueue_style( 'easy_testimonials_pro_styles' );
+		easy_t_register_pro_themes();
 	}	
+}
+
+function easy_t_register_pro_themes(){
+	//five star ratings
+	wp_register_style( 'easy_testimonial_rateit_style', plugins_url('include/css/rateit.css', __FILE__) );
+	wp_enqueue_style( 'easy_testimonial_rateit_style' );
+	
+	//register and enqueue pro style
+	wp_register_style( 'easy_testimonials_pro_style', plugins_url('include/css/easy_testimonials_pro.css', __FILE__) );
+	wp_enqueue_style( 'easy_testimonials_pro_style' );
 }
 
 function easy_t_send_notification_email($submitted_testimonial = array()){
@@ -339,221 +340,245 @@ function easy_testimonials_use_recaptcha()
 	
 //submit testimonial shortcode
 function submitTestimonialForm($atts){
+	//load shortcode attributes into an array
+	$atts = shortcode_atts( array(
+		'submit_to_category' => false,
+		'testimonial_author_id' => get_option('easy_t_testimonial_author', 1),
+	), $atts );
+	
+	extract($atts);
 
-		// enqueue reCAPTCHA JS if needed
-		if( easy_testimonials_use_recaptcha() ) {
-			wp_enqueue_script('g-recaptcha');			
-		}
-		ob_start();
-		
-        // process form submissions
-        $inserted = false;
-       
-        if( 'POST' == $_SERVER['REQUEST_METHOD'] && !empty( $_POST['action'] ) && $_POST['action'] == "post_testimonial" ) {
-			if(isValidKey()){  
-				$do_not_insert = false;
+	// enqueue reCAPTCHA JS if needed
+	if( easy_testimonials_use_recaptcha() ) {
+		wp_enqueue_script('g-recaptcha');			
+	}
+	ob_start();
+	
+	// process form submissions
+	$inserted = false;
+   
+	if( 'POST' == $_SERVER['REQUEST_METHOD'] && !empty( $_POST['action'] ) && $_POST['action'] == "post_testimonial" ) {
+		if(isValidKey()){  
+			$do_not_insert = false;
+			
+			if (isset ($_POST['the-title']) && strlen($_POST['the-title']) > 0) {
+					$title =  wp_strip_all_tags($_POST['the-title']);
+			} else {
+					$title_error = '<p class="easy_t_error">' . get_option('easy_t_title_field_error','Please give ' . strtolower(get_option('easy_t_body_content_field_label','your testimonial')) . ' a ' . strtolower(get_option('easy_t_title_field_label','title')) . '.') . '</p>';
+					$do_not_insert = true;
+			}
+		   
+			if (isset ($_POST['the-body']) && strlen($_POST['the-body']) > 0) {
+					$body = $_POST['the-body'];
+			} else {
+					$body_error = '<p class="easy_t_error">' . get_option('easy_t_body_field_error', 'Please enter ' . strtolower(get_option('easy_t_body_content_field_label','your testimonial')) . '.') . '</p>';
+					$do_not_insert = true;
+			}			
+			
+			if( get_option('easy_t_use_captcha',0) ){ 
+				$correct = easy_t_check_captcha(); 
+				if(!$correct){
+					$captcha_error = '<p class="easy_t_error">' . get_option('easy_t_captcha_field_error', 'Captcha did not match.') . '</p>';
+					$do_not_insert = true;
+				}
+			}
+			
+			if(isset($captcha_error) || isset($body_error) || isset($title_error)){
+				echo '<p class="easy_t_error">' . get_option('easy_t_general_error', 'There was an error with your submission.  Please check the fields and try again.') . '</p>';
+			}
+		   
+			if(!$do_not_insert){
+				//snag custom fields
+				$the_other = isset($_POST['the-other']) ? $_POST['the-other'] : '';
+				$the_other_other = isset($_POST['the-other-other']) ? $_POST['the-other-other'] : '';
+				$the_name = isset($_POST['the-name']) ? $_POST['the-name'] : '';
+				$the_rating = isset($_POST['the-rating']) ? $_POST['the-rating'] : '';
+				$the_email = isset($_POST['the-email']) ? $_POST['the-email'] : '';
+				$the_category = isset($_POST['the-category']) ? $_POST['the-category'] : "";
 				
-				if (isset ($_POST['the-title']) && strlen($_POST['the-title']) > 0) {
-						$title =  $_POST['the-title'];
-				} else {
-						$title_error = '<p class="easy_t_error">Please give ' . strtolower(get_option('easy_t_body_content_field_label','your testimonial')) . ' a ' . strtolower(get_option('easy_t_title_field_label','title')) . '.</p>';
-						$do_not_insert = true;
+				$tags = array();
+			   
+				$post = array(
+					'post_title'    => $title,
+					'post_content'  => $body,
+					'post_category' => array(),  // custom taxonomies too, needs to be an array
+					'tags_input'    => $tags,
+					'post_status'   => 'pending',
+					'post_type'     => 'testimonial',
+					'post_author' 	=> $testimonial_author_id
+				);
+			
+				$new_id = wp_insert_post($post);
+				
+				//set the testimonial category
+				//TBD: handle multiple categories (should just be an array of term id's)
+				
+				//load the term id by the passed slug
+				//this prevents someone from passing in a slug of their own creation and having that create a newly corresponding category
+				//instead, it will load the id of the desired term and add that,
+				//if no matching term is found, we just don't add this testimonial to a category!
+				/* 
+					Warning: string vs integer confusion! Field values, including term_id are returned in string format. Before further use, typecast numeric values to actual integers, otherwise WordPress will mix up term_ids and slugs which happen to have only numeric characters! 
+				*/
+				$testimonial_category_id = get_term_by('slug', $the_category, 'easy-testimonial-category');
+				if( isset($testimonial_category_id->term_id) ){
+					wp_set_object_terms($new_id, (int)$testimonial_category_id->term_id, 'easy-testimonial-category');
 				}
 			   
-				if (isset ($_POST['the-body']) && strlen($_POST['the-body']) > 0) {
-						$body = $_POST['the-body'];
-				} else {
-						$body_error = '<p class="easy_t_error">Please enter ' . strtolower(get_option('easy_t_body_content_field_label','your testimonial')) . '.</p>';
-						$do_not_insert = true;
-				}			
-				
-				if( get_option('easy_t_use_captcha',0) ){ 
-					$correct = easy_t_check_captcha(); 
-					if(!$correct){
-						$captcha_error = '<p class="easy_t_error">Captcha did not match.</p>';
-						$do_not_insert = true;
-					}
-				}
-				
-				if(isset($captcha_error) || isset($body_error) || isset($title_error)){
-					echo '<p class="easy_t_error">There was an error with your submission.  Please check the fields and try again.</p>';
-				}
+				//set the custom fields
+				update_post_meta( $new_id, '_ikcf_client', $the_name );
+				update_post_meta( $new_id, '_ikcf_position', $the_other );
+				update_post_meta( $new_id, '_ikcf_other', $the_other_other );
+				update_post_meta( $new_id, '_ikcf_rating', $the_rating );
+				update_post_meta( $new_id, '_ikcf_email', $the_email );
 			   
-				if(!$do_not_insert){
-					//snag custom fields
-					$the_other = isset($_POST['the-other']) ? $_POST['the-other'] : '';
-					$the_other_other = isset($_POST['the-other-other']) ? $_POST['the-other-other'] : '';
-					$the_name = isset($_POST['the-name']) ? $_POST['the-name'] : '';
-					$the_rating = isset($_POST['the-rating']) ? $_POST['the-rating'] : '';
-					$the_email = isset($_POST['the-email']) ? $_POST['the-email'] : '';
-					$the_category = isset($_POST['the-category']) ? $_POST['the-category'] : "";
-					
-					$tags = array();
-				   
-					$post = array(
-						'post_title'    => $title,
-						'post_content'  => $body,
-						'post_category' => array(),  // custom taxonomies too, needs to be an array
-						'tags_input'    => $tags,
-						'post_status'   => 'pending',
-						'post_type'     => 'testimonial'
-					);
+			   //collect info for notification e-mail
+			   $submitted_testimonial = array(
+					'post' => $post,
+					'the_name' => $the_name,
+					'the_other' => $the_other,
+					'the_other_other' => $the_other_other,
+					'the_rating' => $the_rating,
+					'the_email' => $the_email
+			   );
+			   
+				$inserted = true;
 				
-					$new_id = wp_insert_post($post);
-					
-					//set the testimonial category
-					//TBD: handle multiple categories
-					wp_set_object_terms($new_id, $the_category, 'easy-testimonial-category');
-				   
-					//set the custom fields
-					update_post_meta( $new_id, '_ikcf_client', $the_name );
-					update_post_meta( $new_id, '_ikcf_position', $the_other );
-					update_post_meta( $new_id, '_ikcf_other', $the_other_other );
-					update_post_meta( $new_id, '_ikcf_rating', $the_rating );
-					update_post_meta( $new_id, '_ikcf_email', $the_email );
-				   
-				   //collect info for notification e-mail
-				   $submitted_testimonial = array(
-						'post' => $post,
-						'the_name' => $the_name,
-						'the_other' => $the_other,
-						'the_other_other' => $the_other_other,
-						'the_rating' => $the_rating,
-						'the_email' => $the_email
-				   );
-				   
-					$inserted = true;
-					
-					//if the user has submitted a photo with their testimonial, handle the upload
-					if( ! empty( $_FILES ) ) {
-						foreach( $_FILES as $file ) {
-							if( is_array( $file ) ) {
-								$attachment_id = easy_t_upload_user_file( $file, $new_id );
-							}
+				//if the user has submitted a photo with their testimonial, handle the upload
+				if( ! empty( $_FILES ) ) {
+					foreach( $_FILES as $file ) {
+						if( is_array( $file ) ) {
+							$attachment_id = easy_t_upload_user_file( $file, $new_id );
 						}
 					}
 				}
-			} else {
-				echo "You must have a valid key to perform this action.";
-            }
-        }       
-       
-        $content = '';
-       
-        if(isValidKey()){ 		
-			if($inserted){
-				$redirect_url = get_option('easy_t_submit_success_redirect_url','');
-				easy_t_send_notification_email($submitted_testimonial);
-				if(strlen($redirect_url) > 2){
-					echo '<script type="text/javascript">window.location.replace("'.$redirect_url.'");</script>';
-				} else {					
-					echo '<p class="easy_t_submission_success_message">' . get_option('easy_t_submit_success_message','Thank You For Your Submission!') . '</p>';
-				}
-			} else { ?>
-			<!-- New Post Form -->
-			<div id="postbox">
-					<form id="new_post" class="easy-testimonials-submission-form" name="new_post" method="post" enctype="multipart/form-data" >
-							<div class="easy_t_field_wrap <?php if(isset($title_error)){ echo "easy_t_field_wrap_error"; }//if a title wasn't entered add the wrap error class ?>">
-								<?php if(isset($title_error)){ echo $title_error; }//if a title wasn't entered display a message ?>
-								<label for="the-title"><?php echo get_option('easy_t_title_field_label','Title'); ?></label><br />
-								<input type="text" id="the-title" value="<?php echo ( !empty($_POST['the-title']) ? htmlentities($_POST['the-title']) : ''); ?>" tabindex="1" size="20" name="the-title" />
-								<p class="easy_t_description"><?php echo get_option('easy_t_title_field_description','Please give your Testimonial a Title.  *Required'); ?></p>
-							</div>
-							<?php if(!get_option('easy_t_hide_name_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-name"><?php echo get_option('easy_t_name_field_label','Name'); ?></label><br />
-								<input type="text" id="the-name" value="<?php echo ( !empty($_POST['the-name']) ? htmlentities($_POST['the-name']) : ''); ?>" tabindex="2" size="20" name="the-name" />
-								<p class="easy_t_description"><?php echo get_option('easy_t_name_field_description','Please enter your Full Name.'); ?></p>
-							</div>
-							<?php endif; ?>
-							<?php if(!get_option('easy_t_hide_email_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-email"><?php echo get_option('easy_t_email_field_label','Your E-Mail Address'); ?></label><br />
-								<input type="text" id="the-email" value="<?php echo ( !empty($_POST['the-email']) ? htmlentities($_POST['the-email']) : ''); ?>" tabindex="2" size="20" name="the-email" />
-								<p class="easy_t_description"><?php echo get_option('easy_t_email_field_description','Please enter your e-mail address.  This information will not be publicly displayed.'); ?></p>
-							</div>
-							<?php endif; ?>
-							<?php if(!get_option('easy_t_hide_position_web_other_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-other"><?php echo get_option('easy_t_position_web_other_field_label','Position / Web Address / Other'); ?></label><br />
-								<input type="text" id="the-other" value="<?php echo ( !empty($_POST['the-other']) ? htmlentities($_POST['the-other']) : ''); ?>" tabindex="3" size="20" name="the-other" />
-								<p class="easy_t_description"><?php echo get_option('easy_t_position_web_other_field_description','Please enter your Job Title or Website address.'); ?></p>
-							</div>
-							<?php endif; ?>
-							<?php if(!get_option('easy_t_hide_other_other_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-other-other"><?php echo get_option('easy_t_other_other_field_label','Location / Product Reviewed / Other'); ?></label><br />
-								<input type="text" id="the-other-other" value="<?php echo ( !empty($_POST['the-other-other']) ? htmlentities($_POST['the-other-other']) : ''); ?>" tabindex="3" size="20" name="the-other-other" />
-								<p class="easy_t_description"><?php echo get_option('easy_t_other_other_field_description','Please enter your the name of the item you are Reviewing.');?>
-							</div>
-							<?php endif; ?>
-							<?php if(!get_option('easy_t_hide_category_field',false)): ?>
-							<?php $testimonial_categories = get_terms( 'easy-testimonial-category', 'orderby=title&hide_empty=0' ); ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-category"><?php echo get_option('easy_t_category_field_label','Category'); ?></label><br />
-								<select id="the-category" name="the-category">
-									<?php
-									foreach($testimonial_categories as $cat) {
-										$sel_attr = ( !empty($_POST['the-category']) && $_POST['the-category'] == $cat->slug) ? 'selected="selected"' : '';
-										printf('<option value="%s" %s>%s</option>', $cat->slug, $sel_attr, htmlentities($cat->name));
-									}
-									?>
-								</select>
-								<p class="easy_t_description"><?php echo get_option('easy_t_category_field_description','Please select the Category that best matches your Testimonial.'); ?></p>
-							</div>
-							<?php endif; ?>
-							<?php if(get_option('easy_t_use_rating_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-rating"><?php echo get_option('easy_t_rating_field_label','Your Rating'); ?></label><br />
-								<select id="the-rating" tabindex="4" size="20" name="the-rating" >
-									<?php 
-									foreach(range(1, 5) as $rating) {
-										$sel_attr = ( !empty($_POST['the-rating']) && $_POST['the-rating'] == $rating) ? 'selected="selected"' : '';
-										printf('<option value="%d" %s>%d</option>', $rating, $sel_attr, $rating);
-									}
-									?>
-								</select>
-								<div class="rateit" data-rateit-backingfld="#the-rating" data-rateit-min="0"></div>
-								<p class="easy_t_description"><?php echo get_option('easy_t_rating_field_description','1 - 5 out of 5, where 5/5 is the best and 1/5 is the worst.'); ?></p>
-							</div>
-							<?php endif; ?>
-							<div class="easy_t_field_wrap <?php if(isset($body_error)){ echo "easy_t_field_wrap_error"; }//if a testimonial wasn't entered add the wrap error class ?>">
-								<?php if(isset($body_error)){ echo $body_error; }//if a testimonial wasn't entered display a message ?>
-								<label for="the-body"><?php echo get_option('easy_t_body_content_field_label','Your Testimonial'); ?></label><br />
-								<textarea id="the-body" name="the-body" cols="50" tabindex="5" rows="6"><?php echo ( !empty($_POST['the-body']) ? htmlentities($_POST['the-body']) : ''); ?></textarea>
-								<p class="easy_t_description"><?php echo get_option('easy_t_body_content_field_description','Please enter your Testimonial.  *Required'); ?></p>
-							</div>							
-							<?php if(get_option('easy_t_use_image_field',false)): ?>
-							<div class="easy_t_field_wrap">
-								<label for="the-image"><?php echo get_option('easy_t_image_field_label','Testimonial Image'); ?></label><br />
-								<input type="file" id="the-image" value="" tabindex="6" size="20" name="the-image" />
-								<p class="easy_t_description"><?php echo get_option('easy_t_image_field_description','You can select and upload 1 image along with your Testimonial.  Depending on the website\'s settings, this image may be cropped or resized.  Allowed file types are .gif, .jpg, .png, and .jpeg.'); ?></p>
-							</div>
-							<?php endif; ?>
-							
-							<?php 
-								if( get_option('easy_t_use_captcha',0) ) {
-									?><div class="easy_t_field_wrap <?php if(isset($captcha_error)){ echo "easy_t_field_wrap_error"; }//if a captcha wasn't correctly entered add the wrap error class ?>"><?php
-									//if a captcha was entered incorrectly (or not at all) display message
-									if(isset($captcha_error)){ echo $captcha_error; }
-									easy_t_outputCaptcha();
-									?></div><?php
+			}
+		} else {
+			echo "You must have a valid key to perform this action.";
+		}
+	}       
+   
+	$content = '';
+   
+	if(isValidKey()){ 		
+		if($inserted){
+			$redirect_url = get_option('easy_t_submit_success_redirect_url','');
+			easy_t_send_notification_email($submitted_testimonial);
+			if(strlen($redirect_url) > 2){
+				echo '<script type="text/javascript">window.location.replace("'.$redirect_url.'");</script>';
+			} else {					
+				echo '<p class="easy_t_submission_success_message">' . get_option('easy_t_submit_success_message','Thank You For Your Submission!') . '</p>';
+			}
+		} else { ?>
+		<!-- New Post Form -->
+		<div id="postbox">
+				<form id="new_post" class="easy-testimonials-submission-form" name="new_post" method="post" enctype="multipart/form-data" >
+						<div class="easy_t_field_wrap <?php if(isset($title_error)){ echo "easy_t_field_wrap_error"; }//if a title wasn't entered add the wrap error class ?>">
+							<?php if(isset($title_error)){ echo $title_error; }//if a title wasn't entered display a message ?>
+							<label for="the-title"><?php echo get_option('easy_t_title_field_label','Title'); ?></label>
+							<input type="text" id="the-title" value="<?php echo ( !empty($_POST['the-title']) ? htmlentities($_POST['the-title']) : ''); ?>" tabindex="1" size="20" name="the-title" />
+							<p class="easy_t_description"><?php echo get_option('easy_t_title_field_description','Please give your Testimonial a Title.  *Required'); ?></p>
+						</div>
+						<?php if(!get_option('easy_t_hide_name_field',false)): ?>
+						<div class="easy_t_field_wrap">
+							<label for="the-name"><?php echo get_option('easy_t_name_field_label','Name'); ?></label>
+							<input type="text" id="the-name" value="<?php echo ( !empty($_POST['the-name']) ? htmlentities($_POST['the-name']) : ''); ?>" tabindex="2" size="20" name="the-name" />
+							<p class="easy_t_description"><?php echo get_option('easy_t_name_field_description','Please enter your Full Name.'); ?></p>
+						</div>
+						<?php endif; ?>
+						<?php if(!get_option('easy_t_hide_email_field',false)): ?>
+						<div class="easy_t_field_wrap">
+							<label for="the-email"><?php echo get_option('easy_t_email_field_label','Your E-Mail Address'); ?></label>
+							<input type="text" id="the-email" value="<?php echo ( !empty($_POST['the-email']) ? htmlentities($_POST['the-email']) : ''); ?>" tabindex="2" size="20" name="the-email" />
+							<p class="easy_t_description"><?php echo get_option('easy_t_email_field_description','Please enter your e-mail address.  This information will not be publicly displayed.'); ?></p>
+						</div>
+						<?php endif; ?>
+						<?php if(!get_option('easy_t_hide_position_web_other_field',false)): ?>
+						<div class="easy_t_field_wrap">
+							<label for="the-other"><?php echo get_option('easy_t_position_web_other_field_label','Position / Web Address / Other'); ?></label>
+							<input type="text" id="the-other" value="<?php echo ( !empty($_POST['the-other']) ? htmlentities($_POST['the-other']) : ''); ?>" tabindex="3" size="20" name="the-other" />
+							<p class="easy_t_description"><?php echo get_option('easy_t_position_web_other_field_description','Please enter your Job Title or Website address.'); ?></p>
+						</div>
+						<?php endif; ?>
+						<?php if(!get_option('easy_t_hide_other_other_field',false)): ?>
+						<div class="easy_t_field_wrap">
+							<label for="the-other-other"><?php echo get_option('easy_t_other_other_field_label','Location / Product Reviewed / Other'); ?></label>
+							<input type="text" id="the-other-other" value="<?php echo ( !empty($_POST['the-other-other']) ? htmlentities($_POST['the-other-other']) : ''); ?>" tabindex="3" size="20" name="the-other-other" />
+							<p class="easy_t_description"><?php echo get_option('easy_t_other_other_field_description','Please enter your the name of the item you are Reviewing.');?>
+						</div>
+						<?php endif; ?>
+						<?php //RWG: if set, add a hidden input for the submit_to_category value and hide the choice from the user ?>
+						<?php if( isset($submit_to_category) && strlen($submit_to_category) > 2 ){ ?>
+							<input type="hidden" id="the-category" name="the-category" value="<?php echo $submit_to_category; ?>" />
+						<?php } else { ?>
+						<?php $testimonial_categories = get_terms( 'easy-testimonial-category', 'orderby=title&hide_empty=0' ); ?>
+						<?php if( !empty($testimonial_categories) && !get_option('easy_t_hide_category_field',false) ): ?>
+						<div class="easy_t_field_wrap">
+							<label for="the-category"><?php echo get_option('easy_t_category_field_label','Category'); ?></label>
+							<select id="the-category" name="the-category">
+								<?php
+								foreach($testimonial_categories as $cat) {
+									$sel_attr = ( !empty($_POST['the-category']) && $_POST['the-category'] == $cat->slug) ? 'selected="selected"' : '';
+									printf('<option value="%s" %s>%s</option>', $cat->slug, $sel_attr, $cat->name);
 								}
-							?>
-							
-							<div class="easy_t_field_wrap"><input type="submit" value="<?php echo get_option('easy_t_submit_button_label','Submit Testimonial'); ?>" tabindex="7" id="submit" name="submit" /></div>
-							<input type="hidden" name="action" value="post_testimonial" />
-							<?php wp_nonce_field( 'new-post' ); ?>
-					</form>
-			</div>
-			<!--// New Post Form -->
-			<?php }
-		   
-			$content = ob_get_contents();
-			ob_end_clean(); 
-        }
-       
-        return apply_filters('easy_t_submission_form', $content);
+								?>
+							</select>
+							<p class="easy_t_description"><?php echo get_option('easy_t_category_field_description','Please select the Category that best matches your Testimonial.'); ?></p>
+						</div>
+						<?php endif; ?>
+						<?php }//end check for sc attribute ?>
+						<?php if(get_option('easy_t_use_rating_field',false)): ?>
+						<div class="easy_t_field_wrap">
+							<label for="the-rating"><?php echo get_option('easy_t_rating_field_label','Your Rating'); ?></label>
+							<select id="the-rating" class="the-rating" tabindex="4" size="20" name="the-rating" >
+								<?php 
+								foreach(range(1, 5) as $rating) {
+									$sel_attr = ( !empty($_POST['the-rating']) && $_POST['the-rating'] == $rating) ? 'selected="selected"' : '';
+									printf('<option value="%d" %s>%d</option>', $rating, $sel_attr, $rating);
+								}
+								?>
+							</select>
+							<div class="rateit" data-rateit-backingfld=".the-rating" data-rateit-min="0"></div>
+							<p class="easy_t_description"><?php echo get_option('easy_t_rating_field_description','1 - 5 out of 5, where 5/5 is the best and 1/5 is the worst.'); ?></p>
+						</div>
+						<?php endif; ?>
+						<div class="easy_t_field_wrap <?php if(isset($body_error)){ echo "easy_t_field_wrap_error"; }//if a testimonial wasn't entered add the wrap error class ?>">
+							<?php if(isset($body_error)){ echo $body_error; }//if a testimonial wasn't entered display a message ?>
+							<label for="the-body"><?php echo get_option('easy_t_body_content_field_label','Your Testimonial'); ?></label>
+							<textarea id="the-body" name="the-body" cols="50" tabindex="5" rows="6"><?php echo ( !empty($_POST['the-body']) ? htmlentities($_POST['the-body']) : ''); ?></textarea>
+							<p class="easy_t_description"><?php echo get_option('easy_t_body_content_field_description','Please enter your Testimonial.  *Required'); ?></p>
+						</div>							
+						<?php if(get_option('easy_t_use_image_field',false)): ?>
+						<div class="easy_t_field_wrap">
+							<label for="the-image"><?php echo get_option('easy_t_image_field_label','Testimonial Image'); ?></label>
+							<input type="file" id="the-image" value="" tabindex="6" size="20" name="the-image" />
+							<p class="easy_t_description"><?php echo get_option('easy_t_image_field_description','You can select and upload 1 image along with your Testimonial.  Depending on the website\'s settings, this image may be cropped or resized.  Allowed file types are .gif, .jpg, .png, and .jpeg.'); ?></p>
+						</div>
+						<?php endif; ?>
+						
+						<?php 
+							if( get_option('easy_t_use_captcha',0) ) {
+								?><div class="easy_t_field_wrap <?php if(isset($captcha_error)){ echo "easy_t_field_wrap_error"; }//if a captcha wasn't correctly entered add the wrap error class ?>"><?php
+								//if a captcha was entered incorrectly (or not at all) display message
+								if(isset($captcha_error)){ echo $captcha_error; }
+								easy_t_outputCaptcha();
+								?></div><?php
+							}
+						?>
+						
+						<div class="easy_t_field_wrap"><input type="submit" value="<?php echo get_option('easy_t_submit_button_label','Submit Testimonial'); ?>" tabindex="7" id="submit" name="submit" /></div>
+						<input type="hidden" name="action" value="post_testimonial" />
+						<?php wp_nonce_field( 'new-post' ); ?>
+				</form>
+		</div>
+		<!--// New Post Form -->
+		<?php }
+	   
+		$content = ob_get_contents();
+		ob_end_clean(); 
+	}
+   
+	return apply_filters('easy_t_submission_form', $content);
 }
 
 //add Custom CSS
@@ -574,7 +599,8 @@ function easy_testimonials_setup_custom_css() {
 //if nothing is passed, displays count of all testimonials
 //$status is the status of the testimonials to be included in the count
 //defaults to published testimonials only
-function easy_testimonials_count($category = '', $status = 'publish'){
+//if $aggregate_rating is set to true, this will output the aggregate rating markup for the counted testimonials
+function easy_testimonials_count($category = '', $status = 'publish', $show_aggregate_rating = false){
 	$tax_query = array();	
 	
 	//if a category slug was passed
@@ -592,26 +618,61 @@ function easy_testimonials_count($category = '', $status = 'publish'){
 	$args = array (
 		'post_type' => 'testimonial',
 		'tax_query' => $tax_query,
-		'post_status' => $status
+		'post_status' => $status,
+		'nopaging' => true
 	);
-	
+		
 	$count_query = new WP_Query( $args );
 	
-	$count = $count_query->found_posts;
+	//if the option to show aggregate rating is toggling
+	//construct and return the aggregate rating output
+	//instead of just returning the numerical count
+	if($show_aggregate_rating){		
+		
+		//calculate average review value
+		$total_rating = 0;
+		$total_rated_testimonials = 0;//only want to divide by the number of testimonials with actual ratings
+		
+		//TBD: allow control over item rating is displayed about
+		$item_reviewed = get_option('easy_t_global_item_reviewed','');
+		
+		foreach ($count_query->posts as $testimonial){
+			$testimonial_rating = get_post_meta($testimonial->ID, '_ikcf_rating', true);
+			
+			if(intval($testimonial_rating) > 0){				
+				$total_rated_testimonials ++;
+				$total_rating += $testimonial_rating;
+			}
+		}
+
+		$average_rating = $total_rating / $total_rated_testimonials;
+		
+		$output = '
+			<div class="easy_t_aggregate_rating_wrapper" itemscope itemtype="http://schema.org/Product">
+				<span class="easy_t_aggregate_rating_item" itemprop="name">' . $item_reviewed . '</span>
+				<div class="easy_t_aggregate_rating" itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">Rated <span class="easy_t_aggregate_rating_top_count" itemprop="ratingValue">' . round($average_rating, 2) . '</span>/5 based on <span itemprop="reviewCount" class="easy_t_aggregate_rating_review_count" >' . $total_rated_testimonials . '</span> customer reviews</div>		
+			</div>
+		';
+		
+		return apply_filters('easy_t_aggregate_rating', $output, $count_query);
+	}
 	
-	return $count;
+	//if we are down here, we aren't doing an aggregate rating
+	//so return the count
+	return apply_filters('easy_t_testimonials_count', $count_query->found_posts, $count_query);
 }
 
 //shortcode mapping function for easy_testimonials_count
-//accepts two attributes, category and status
+//accepts three attributes, category and status and show_aggregate_rating
 function outputTestimonialsCount($atts){
 	//load shortcode attributes into an array
 	extract( shortcode_atts( array(
 		'category' => '',
-		'status' => 'publish'
+		'status' => 'publish',
+		'show_aggregate_rating' => false
 	), $atts ) );
 	
-	return easy_testimonials_count($category, $status);
+	return easy_testimonials_count($category, $status, $show_aggregate_rating);
 }
 
 if(!function_exists('word_trim')):
@@ -655,10 +716,9 @@ function easy_testimonials_setup_testimonials(){
 	$fields = array(); 
 	$fields[] = array('name' => 'client', 'title' => 'Client Name', 'description' => "Name of the Client giving the testimonial.  Appears below the Testimonial.", 'type' => 'text');
 	$fields[] = array('name' => 'email', 'title' => 'E-Mail Address', 'description' => "The client's e-mail address.  This field is used to check for a Gravatar, if that option is enabled in your settings.", 'type' => 'text'); 
-	$fields[] = array('name' => 'position', 'title' => 'Position / Location / Other', 'description' => "The information that appears below the client's name.", 'type' => 'text');  
-	$fields[] = array('name' => 'other', 'title' => 'Location / Product Reviewed / Other', 'description' => "The information that appears below the second custom field, Postion / Location / Other.", 'type' => 'text');  
+	$fields[] = array('name' => 'position', 'title' => 'Position / Web Address / Other', 'description' => "The information that appears below the client's name.", 'type' => 'text');  
+	$fields[] = array('name' => 'other', 'title' => 'Location Reviewed / Product Reviewed / Item Reviewed', 'description' => "The information that appears below the second custom field, Position / Web Address / Other.  Display of this field is required for proper structured data output.", 'type' => 'text');  
 	$fields[] = array('name' => 'rating', 'title' => 'Rating', 'description' => "The client's rating, if submitted along with their testimonial.  This can be displayed below the client's position, or name if the position is hidden, or it can be displayed above the testimonial text.", 'type' => 'text');  
-	//$fields[] = array('name' => 'htid', 'title' => 'HTID', 'description' => "Please leave this alone -- this field should never be publicly displayed.");  
 	$myCustomType = new ikTestimonialsCustomPostType($postType, $fields);
 	register_taxonomy( 'easy-testimonial-category', 'testimonial', array( 'hierarchical' => true, 'label' => __('Testimonial Category', 'easy-testimonials'), 'rewrite' => array('slug' => 'testimonial-category', 'with_front' => true) ) ); 
 	
@@ -670,7 +730,7 @@ function easy_testimonials_setup_testimonials(){
         add_theme_support( 'post-thumbnails', array( 'testimonial' ) );       
 		//for the testimonial thumb images    
 	}
-	//specifics set, add our to the array
+	//specifics set, add ours to the array
     elseif( is_array( $supportedTypes ) ){
         $supportedTypes[0][] = 'testimonial';
         add_theme_support( 'post-thumbnails', $supportedTypes[0] );
@@ -772,11 +832,12 @@ function outputRandomTestimonial($atts){
 		'theme' => '',
 		'show_date' => false,
 		'show_other' => false,
-		'width' => false
+		'width' => false,
+		'hide_view_more' => 0
 	), $atts );
 	
 	extract($atts);
-	
+		
 	ob_start();
 	
 	//load testimonials into an array and output to the buffer
@@ -810,7 +871,8 @@ function outputSingleTestimonial($atts){
 		'theme' => '',
 		'show_date' => false,
 		'show_other' => false,
-		'width' => false
+		'width' => false,
+		'hide_view_more' => 0
 	), $atts );
 	
 	extract($atts);
@@ -848,17 +910,23 @@ function outputTestimonials($atts){
 		'theme' => '',
 		'show_date' => false,
 		'show_other' => false,
-		'width' => false
+		'width' => false,
+		'hide_view_more' => true
 	), $atts );
 	
 	extract($atts);
 			
-	if(!is_numeric($count)){
+	//if a bad value is passed for count, set it to -1 to load all testimonials
+	//if $paginate is set to "all", this shortcode was made from a widget 
+	//and we need to set the count to -1 to load all testimonials
+	if(!is_numeric($count) || $paginate == "all"){
 		$count = -1;
 	}
 	
 	//if we are paging the testimonials, set the $count to the number of testimonials per page
-	if($paginate){
+	//sometimes $paginate is set, but is set to "all" (from the Widget) -
+	//this indicates that we want to show every testimonial and not page them
+	if($paginate && $paginate != "all"){
 		$count = $testimonials_per_page;
 	}
 	
@@ -866,8 +934,27 @@ function outputTestimonials($atts){
 	
 	$i = 0;
 	
+	//query args
+	$args = array( 'post_type' => 'testimonial','posts_per_page' => $count, 'easy-testimonial-category' => $category, 'orderby' => $orderby, 'order' => $order);
+	
+	// handle paging
+	$nopaging = ($testimonials_per_page <= 0);
+
+	$testimonial_page = 1;
+	if ( get_query_var('testimonial_page') ) {
+		$testimonial_page = get_query_var('testimonial_page');
+	}	
+	$paged = $testimonial_page;
+	
+	if (!$nopaging && $paginate && $paginate != "all") {
+		//if $nopaging is false and $paginate is true, or max (but not "all"), then $testimonials_per_page is greater than 0 and the user is trying to paginate them
+		//sometimes paginate is true, or 1, or max -- they all indicate the same thing.  "max" comes from the widget, true or 1 come from the shortcode / old instructions
+		$args['posts_per_page'] = $testimonials_per_page;
+		$args['paged'] = $paged;
+	}
+	
 	//load testimonials into an array
-	$loop = new WP_Query(array( 'post_type' => 'testimonial','posts_per_page' => $count, 'easy-testimonial-category' => $category, 'orderby' => $orderby, 'order' => $order, 'paged' => get_query_var( 'paged' )));
+	$loop = new WP_Query($args);
 	while($loop->have_posts()) : $loop->the_post();
 		$postid = get_the_ID();	
 		echo easy_t_get_single_testimonial_html($postid, $atts);
@@ -875,12 +962,21 @@ function outputTestimonials($atts){
 	
 	//output the pagination links, if instructed to do so
 	//TBD: make all labels controllable via settings
-	//TBD: fancier pagination, with page numbers etc
 	if($paginate){
-		echo '<div class="easy_t_pagination">';
-			echo '<div style="float:left;">' . get_previous_posts_link( __('Previous Testimonials', 'easy-testimonials') ) . '</div>';
-			echo '<div style="float:right;">' . get_next_posts_link( __('Next Testimonials', 'easy-testimonials'), $loop->max_num_pages ) . '</div>';
-		echo '</div>';
+		$pagination_link_template = get_pagination_link_template('testimonial_page');
+		
+		?>
+		<div class="easy_t_pagination">                               
+			<?php
+			echo paginate_links( array(
+				'base' => $pagination_link_template,
+				'format' => '?testimonial_page=%#%',
+				'current' => max( 1, $paged ),
+				'total' => $loop->max_num_pages
+			) );
+			?>
+		</div>  
+		<?php
 	}
 	
 	wp_reset_postdata();
@@ -890,6 +986,38 @@ function outputTestimonials($atts){
 	
 	return apply_filters('easy_t_testimonials_html', $content);
 }
+
+function easy_t_add_pagination_query_var($query_vars)
+{
+	$query_vars[] = 'testimonial_page';		
+	return $query_vars;
+}	
+
+/* 
+ * Returns an URL template that can be passed as the 'base' param 
+ * to WP's paginate_links function
+ * 
+ * Note: This function is based on WordPress' get_pagenum_link. 
+ * It allows the query string argument to changed from 'paged'
+ */
+function get_pagination_link_template( $arg = 'testimonial_page' )
+{
+	$request = remove_query_arg( $arg );
+	
+	$home_root = parse_url(home_url());
+	$home_root = ( isset($home_root['path']) ) ? $home_root['path'] : '';
+	$home_root = preg_quote( $home_root, '|' );
+
+	$request = preg_replace('|^'. $home_root . '|i', '', $request);
+	$request = preg_replace('|^/+|', '', $request);
+
+	$base = trailingslashit( get_bloginfo( 'url' ) );
+
+	$result = add_query_arg( $arg, '%#%', $base . $request );
+	$result = apply_filters( 'easy_t_get_pagination_link_template', $result );
+	
+	return esc_url_raw( $result );
+}	
 
 /*
  * Displays a grid of testimonials, with the requested number of columns
@@ -930,7 +1058,8 @@ function easy_t_testimonials_grid_shortcode($atts)
 		'grid_class' => '',
 		'cell_width' => false,
 		'responsive' => true,
-		'equal_height_rows' => false
+		'equal_height_rows' => false,
+		'hide_view_more' => 0
 	), $atts );
 	
 	extract( $atts );
@@ -938,6 +1067,20 @@ function easy_t_testimonials_grid_shortcode($atts)
 	// allow ids or id to be passed in
 	if ( empty($id) && !empty($ids) ) {
 		$id = $ids;
+	}
+			
+	//if a bad value is passed for count, set it to -1 to load all testimonials
+	//if $paginate is set to "all", this shortcode was made from a widget 
+	//and we need to set the count to -1 to load all testimonials
+	if(!is_numeric($count) || $paginate == "all"){
+		$count = -1;
+	}
+	
+	//if we are paging the testimonials, set the $count to the number of testimonials per page
+	//sometimes $paginate is set, but is set to "all" (from the Widget) -
+	//this indicates that we want to show every testimonial and not page them
+	if($paginate && $paginate != "all"){
+		$count = $testimonials_per_page;
 	}
 	
 	$testimonials_output = '';
@@ -984,9 +1127,18 @@ function easy_t_testimonials_grid_shortcode($atts)
 		'posts_per_page' => $count,
 		'easy-testimonial-category' => $category,
 		'orderby' => $orderby,
-		'order' => $order,
-		'paged' => get_query_var( 'paged' )
+		'order' => $order
 	);
+	
+	// handle paging
+	$nopaging = ($testimonials_per_page <= 0);
+	$paged = !empty($_REQUEST['testimonial_page']) && intval($_REQUEST['testimonial_page']) > 0 ? intval($_REQUEST['testimonial_page']) : 1;
+	if (!$nopaging && $paginate && $paginate != "all") {
+		//if $nopaging is false and $paginate is true, or max (but not "all"), then $testimonials_per_page is greater than 0 and the user is trying to paginate them
+		//sometimes paginate is true, or 1, or max -- they all indicate the same thing.  "max" comes from the widget, true or 1 come from the shortcode / old instructions
+		$args['posts_per_page'] = $testimonials_per_page;
+		$args['paged'] = $paged;
+	}
 	
 	// restrict to specific posts if requested
 	if ( !empty($id) ) {
@@ -1023,6 +1175,21 @@ function easy_t_testimonials_grid_shortcode($atts)
 	// close any half finished rows
 	if ($in_row) {
 		$testimonials_output .= '</div><!--easy_testimonials_grid_row-->';
+	}
+	
+	//output the pagination links, if instructed to do so
+	//TBD: make all labels controllable via settings
+	if($paginate){
+		$pagination_link_template = get_pagination_link_template('testimonial_page');
+		
+		$testimonials_output .= '<div class="easy_t_pagination">';                           
+		$testimonials_output .= paginate_links(array(
+									'base' => $pagination_link_template,
+									'format' => '?testimonial_page=%#%',
+									'current' => max( 1, $paged ),
+									'total' => $loop->max_num_pages
+								));
+		$testimonials_output .= '</div>  ';
 	}
 	
 	// restore globals to their original values (i.e, $post and friends)
@@ -1100,7 +1267,8 @@ function outputAllThemes($atts){
 	extract($atts);
 	
 	if($show_free_themes){
-		foreach($free_theme_array as $theme_slug => $theme_name){				
+		foreach($free_theme_array as $theme_slug => $theme_name){	
+			
 			$atts['theme'] = $theme_slug;
 			
 			ob_start();
@@ -1171,7 +1339,8 @@ function outputTestimonialsCycle($atts){
 		'prev_next' => false,
 		'width' => false,
 		'paused' => false,
-		'display_pagers_above' => false
+		'display_pagers_above' => false,
+		'hide_view_more' => 0
 	), $atts );
 
 	extract($atts);
@@ -1212,10 +1381,15 @@ function outputTestimonialsCycle($atts){
 	//use the width for the slideshow wrapper, to keep the previous/next buttons and pager icons within the desired layout
 	$width = $width ? 'style="width: ' . $width . '"' : 'style="width: ' . get_option('easy_t_width','') . '"';
 	
+	//load testimonials into an array
+	$loop = new WP_Query(array( 'post_type' => 'testimonial','posts_per_page' => $count, 'orderby' => $orderby, 'order' => $order, 'easy-testimonial-category' => $category));
+	$count = $loop->post_count;//for tracking number of testimonials in this loop
+	
 	?>
 	<div class="easy-t-slideshow-wrap <?php echo "easy-t-{$target}";?>" <?php echo $width; ?>>
 	
-		<?php if($display_pagers_above): ?>
+		<?php //only display cycle controls if there is more than one testimonial ?>
+		<?php if($display_pagers_above && $count > 1): ?>
 		<div class="easy-t-cycle-controls">				
 			<?php if($prev_next):?><div class="cycle-prev easy-t-cycle-prev"><?php echo get_option('easy_t_previous_text', '<< Prev'); ?></div><?php endif; ?>
 			<?php if($pager || $show_pager_icons ): ?>
@@ -1240,8 +1414,7 @@ function outputTestimonialsCycle($atts){
 		
 		$counter = 0;
 		
-		//load testimonials into an array
-		$loop = new WP_Query(array( 'post_type' => 'testimonial','posts_per_page' => $count, 'orderby' => $orderby, 'order' => $order, 'easy-testimonial-category' => $category));
+		//iterate through testimonials loop
 		while($loop->have_posts()) : $loop->the_post();		
 			if($counter == 0){
 				$testimonial_display = '';
@@ -1269,7 +1442,8 @@ function outputTestimonialsCycle($atts){
 		?>
 		</div>
 		
-		<?php if(!$display_pagers_above): ?>
+		<?php //only display cycle controls if there is more than one testimonial ?>
+		<?php if(!$display_pagers_above && $count > 1): ?>
 		<div class="easy-t-cycle-controls">				
 			<?php if($prev_next):?><div class="cycle-prev easy-t-cycle-prev"><?php echo get_option('easy_t_previous_text', '<< Prev'); ?></div><?php endif; ?>
 			<?php if($pager || $show_pager_icons ): ?>
@@ -1289,8 +1463,17 @@ function outputTestimonialsCycle($atts){
 
 //runs when viewing a single testimonial's page (ie, you clicked on the continue reading link from the excerpt)
 function single_testimonial_content_filter($content){
-	//not running in a widget, is running in a single view, the post type is a testimonial
-	if ( /*empty($this->in_widget) &&*/ is_single() && get_post_type() == 'testimonial' ) {
+	global $easy_t_in_widget;
+	global $post;
+			
+	// Save the post data in a variable before resetting it. It *shouldn't* matter,
+	// but some plugins might be depending on the global $post being left in whatever
+	// state it was when we got here
+	$old_post = $post;
+	wp_reset_postdata();
+	
+	//not running in a widget, is running in a single view or archive view such as category, tag, date, the post type is a testimonial
+	if ( empty($easy_t_in_widget) && (is_single() || is_archive()) && get_post_type( $post->ID ) == 'testimonial' ) {				
 		//load needed data
 		$postid = get_the_ID();
 		
@@ -1313,12 +1496,14 @@ function single_testimonial_content_filter($content){
 			'show_other' => 1,
 			'width' => '100%'
 		);
-		
+				
 		//build and return the single testimonial html		
-		$template_content = easy_t_get_single_testimonial_html($postid, $atts, true);
-		
-		return $template_content;
+		$content = easy_t_get_single_testimonial_html($postid, $atts, true);
 	}
+
+	// restore post data to its previous, possibly borked, form
+	$post = $old_post;
+	
 	return $content;
 }
 
@@ -1327,13 +1512,36 @@ function single_testimonial_content_filter($content){
 //returns string ready for echoing as classes
 function easy_t_build_classes_from_atts($atts = array()){
 	$class_string = "";
-	
+		
 	foreach ($atts as $key => $value){
 		$class_string .= " " . $value . "_" . $key;
 	}
 	
 	return $class_string;
 }
+
+function easy_t_get_the_excerpt( $post_id )
+{
+	//preserve the old post data for other plugins/themes/etc.
+	global $post;  
+	$save_post = $post;
+  
+	//run our own excerpt function that trims the excerpt without applying the content filter
+	$post = get_post($post_id);
+	if ( !empty($post->post_excerpt) ) {
+		$excerpt_more = easy_t_excerpt_more( '' , $post );
+		$post_excerpt = apply_filters( 'easy_t_get_the_excerpt', strip_tags($post->post_excerpt) . $excerpt_more, $post );
+	} else {
+		$post_excerpt = '';
+	}
+	$output = easy_t_trim_excerpt($post_excerpt , $post);
+  
+	//reset global postdata to saved postdata
+	$post = $save_post;
+  
+	return $output;
+}
+
 
 /*
  * Generates and returns the HTML for a given testimonial, 
@@ -1346,6 +1554,9 @@ function easy_t_build_classes_from_atts($atts = array()){
  */
 function easy_t_get_single_testimonial_html($postid, $atts, $is_single = false)
 {
+	//for use in the filter
+	$atts['is_single'] = $is_single;
+	
 	//if this is being loaded from the single post view
 	//then we already have the post data setup (we are in The Loop)
 	//so skip this step
@@ -1359,11 +1570,13 @@ function easy_t_get_single_testimonial_html($postid, $atts, $is_single = false)
 	
 	ob_start();
 	
+	$testimonial['id'] = $postid;
+	
 	$testimonial['date'] = get_the_date('M. j, Y');
 	if($use_excerpt){
-		$testimonial['content'] = get_the_excerpt();
+		$testimonial['content'] = easy_t_get_the_excerpt( $postid );
 	} else {				
-		$testimonial['content'] = get_the_content();
+		$testimonial['content'] = easy_t_clean_html( get_post_field('post_content', $postid) );
 	}
 	
 	//load rating
@@ -1374,7 +1587,7 @@ function easy_t_get_single_testimonial_html($postid, $atts, $is_single = false)
 		$rating_css = easy_testimonials_build_typography_css('easy_t_rating_');
 	
 		$testimonial['num_stars'] = $testimonial['rating'];
-		$testimonial['rating'] = '<p class="easy_t_ratings" itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating" style="' . $rating_css . '"><meta itemprop="worstRating" content = "1"/><span itemprop="ratingValue" >' . $testimonial['rating'] . '</span>/<span itemprop="bestRating">5</span> Stars.</p>';
+		$testimonial['rating'] = '<p class="easy_t_ratings" itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating" style="' . $rating_css . '"><meta itemprop="worstRating" content = "1"/><span itemprop="ratingValue" >' . htmlentities($testimonial['rating']) . '</span>/<span itemprop="bestRating">5</span> Stars.</p>';
 	}	
 	
 	//if nothing is set for the short content, use the long content
@@ -1388,7 +1601,9 @@ function easy_t_get_single_testimonial_html($postid, $atts, $is_single = false)
 		} else {				
 			$testimonial['content'] = $post->post_content;
 		}
-	}
+				
+		$testimonial['content'] = easy_t_clean_html( get_post_field('post_content', $postid) );
+	}	
 		
 	if(strlen($show_rating)>2){
 		if($show_rating == "before"){
@@ -1407,18 +1622,35 @@ function easy_t_get_single_testimonial_html($postid, $atts, $is_single = false)
 	$testimonial['position'] = get_post_meta($postid, '_ikcf_position', true); 
 	$testimonial['other'] = get_post_meta($postid, '_ikcf_other', true); 	
 
-	build_single_testimonial($testimonial,$show_thumbs,$show_title,$postid,$author_class,$body_class,$testimonials_link,$theme,$show_date,$show_rating,$show_other,$width,$is_single);
+	//default $hide_view_more to false, if it hasn't been set by now
+	if(!isset($hide_view_more)){
+		$hide_view_more = false;
+	}
+	
+	build_single_testimonial($testimonial,$show_thumbs,$show_title,$postid,$author_class,$body_class,$testimonials_link,$theme,$show_date,$show_rating,$show_other,$width,$is_single,$hide_view_more);
 	
 	wp_reset_postdata();	
 	$content = ob_get_contents();
 	ob_end_clean();	
-	return $content;
+	return apply_filters('easy_t_get_single_testimonial_html', $content, $testimonial, $atts, $postid);
+}
+
+//check to see if HTML is allowed in testimonials
+//if so, leave $html unfiltered
+//otherwise, run wp_strip_all_tags on $html
+//return $html
+function easy_t_clean_html( $html = "" ){
+	if( !get_option('easy_t_allow_tags', true) ){
+		$html = wp_strip_all_tags( $html );
+	}
+	
+	return $html;
 }
 
 //given a full set of data for a testimonial
 //assemble the html for that testimonial
 //taking into account current options
-function build_single_testimonial($testimonial,$show_thumbs=false,$show_title=false,$postid,$author_class,$body_class,$testimonials_link,$theme,$show_date=false,$show_rating=false,$show_other=true,$width=false,$is_single=false){
+function build_single_testimonial($testimonial,$show_thumbs=false,$show_title=false,$postid,$author_class,$body_class,$testimonials_link,$theme,$show_date=false,$show_rating=false,$show_other=true,$width=false,$is_single=false,$hide_view_more=false){
 /* scheme.org example
  <div itemprop="review" itemscope itemtype="http://schema.org/Review">
     <span itemprop="name">Not a happy camper</span> -
@@ -1433,6 +1665,23 @@ function build_single_testimonial($testimonial,$show_thumbs=false,$show_title=fa
     it. </span>
   </div>
  */
+ 
+	//if this testimonial doesn't have a value for the item being reviewed
+	//and if the use global item reviewed setting is checked
+	//use the global item reviewed value in for the current testimonial
+	if( (strlen($testimonial['other'])<2) && get_option('easy_t_use_global_item_reviewed',false) ){
+		$testimonial['other'] = get_option('easy_t_global_item_reviewed','');
+	}
+ 
+	//load a list of of easy testimonial categories associated with this testimonial
+	//loop through list and build a string of category slugs
+	//we will append these to the wrapping HTML of the single testimonial for advanced customization
+	$terms = wp_get_object_terms( $testimonial['id'], 'easy-testimonial-category');
+	$term_list = '';
+	foreach($terms as $term){
+		$term_list .= "easy-t-category-" . $term->slug . " ";
+	}
+ 
 	$atts = array(
 		'thumbs' => ($show_thumbs) ? 'show' : 'hide',
 		'title' => ($show_title) ? 'show' : 'hide',
@@ -1441,20 +1690,29 @@ function build_single_testimonial($testimonial,$show_thumbs=false,$show_title=fa
 		'other' => ($show_other) ? 'show' : 'hide'
 	);
 	$attribute_classes = easy_t_build_classes_from_atts($atts);
+	
+	//add the category slugs to the list of classes to output
+	//make sure to include the extra space so we aren't butting classes up against each other
+	$attribute_classes .= " " . $term_list;
  
 	$output_theme = easy_t_get_theme_class($theme);
 	$testimonial_body_css = easy_testimonials_build_typography_css('easy_t_body_');	
 	$width = $width ? 'style="width: ' . $width . '"' : 'style="width: ' . get_option('easy_t_width','') . '"';
-	$show_view_more = get_option('easy_t_show_view_more_link',false);
+	
+	//if the "Show View More Testimonials Link" option is checked
+	//and the hide_view_more attribute is not set
+	//then set $show_view_more to true
+	//else set to false
+	$show_view_more = (get_option('easy_t_show_view_more_link',false) && !$hide_view_more) ? true : false;
 	
 ?>
 	<div class="<?php echo $output_theme; ?> <?php echo $attribute_classes; ?> easy_t_single_testimonial" <?php echo $width; ?>>
-		<blockquote itemprop="review" itemscope itemtype="http://schema.org/Review" class="easy_testimonial" style="<?php echo $testimonial_body_css; ?>">
+		<blockquote itemscope itemtype="http://schema.org/Review" class="easy_testimonial" style="<?php echo $testimonial_body_css; ?>">
 			<?php if ($show_thumbs) {
 				echo $testimonial['image'];
 			} ?>		
 			<?php if ($show_title) {
-				echo '<p itemprop="name" class="easy_testimonial_title">' . get_the_title($postid) . '</p>';
+				echo '<p itemprop="name" class="easy_testimonial_title">' . easy_t_clean_html( get_the_title($postid) ) . '</p>';
 			} ?>	
 			<?php if(get_option('meta_data_position')) {
 				easy_testimonials_build_metadata_html($testimonial, $author_class, $show_date, $show_rating, $show_other);	
@@ -1482,11 +1740,10 @@ function build_single_testimonial($testimonial,$show_thumbs=false,$show_title=fa
 function build_testimonial_image($postid){
 	//load image size settings
 	$testimonial_image_size = isValidKey() ? get_option('easy_t_image_size') : "easy_testimonial_thumb";
-	$testimonial_image_size = "medium"; // zig
 	if(strlen($testimonial_image_size) < 2){
 		$testimonial_image_size = "easy_testimonial_thumb";		
-		$width = 50;
-        $height = 50; 
+		$width = 100;
+        $height = 100;
 	} else {		
 		//one of the default sizes, load using get_option
 		if( in_array( $testimonial_image_size, array( 'thumbnail', 'medium', 'large' ) ) ){
@@ -1508,7 +1765,9 @@ function build_testimonial_image($postid){
 	$size = ($width > $height) ? $width : $height;
 
 	//load testimonial's featured image
-	$image = get_the_post_thumbnail($postid, $testimonial_image_size);
+	//$image = get_the_post_thumbnail($postid, $testimonial_image_size);
+
+	$image = get_the_post_thumbnail($postid, "thumbnail");
 	
 	//if no featured image is set
 	if (strlen($image) < 2){ 
@@ -1563,22 +1822,22 @@ function easy_testimonials_build_metadata_html($testimonial, $author_class, $sho
 		<?php if($show_the_client || $show_the_position || $show_the_other || $show_the_date || $show_rating == "stars" ): ?>
 		<cite>
 			<?php if($show_the_client): ?>
-				<span class="testimonial-client" itemprop="author" style="<?php echo $client_css; ?>"><?php echo $testimonial['client'];?></span>
+				<span class="testimonial-client" itemprop="author" style="<?php echo $client_css; ?>"><?php echo easy_t_clean_html($testimonial['client']);?></span>
 			<?php endif; ?>
 			<?php if($show_the_position): ?>
-				<span class="testimonial-position" style="<?php echo $position_css; ?>"><?php echo $testimonial['position'];?></span>
+				<span class="testimonial-position" style="<?php echo $position_css; ?>"><?php echo easy_t_clean_html($testimonial['position']);?></span>
 			<?php endif; ?>
 			<?php if($show_the_other): ?>
-				<span class="testimonial-other" style="<?php echo $other_css; ?>" itemprop="itemReviewed"><?php echo $testimonial['other'];?></span>
+				<span class="testimonial-other" style="<?php echo $other_css; ?>" itemprop="itemReviewed"><?php echo easy_t_clean_html($testimonial['other']);?></span>
 			<?php endif; ?>
 			<?php if($show_the_date): ?>
-				<span class="date" itemprop="datePublished" content="<?php echo $testimonial['date'];?>" style="<?php echo $date_css; ?>"><?php echo $testimonial['date'];?></span>
+				<span class="date" itemprop="datePublished" content="<?php echo $testimonial['date'];?>" style="<?php echo $date_css; ?>"><?php echo easy_t_clean_html($testimonial['date']);?></span>
 			<?php endif; ?>
 			<?php if($show_the_rating): ?>
 				<?php if(strlen($testimonial['num_stars'])>0): ?>
 				<span itemprop="reviewRating" itemscope itemtype="http://schema.org/Rating" class="stars">
 				<meta itemprop="worstRating" content="1"/>
-				<meta itemprop="ratingValue" content="<?php echo $testimonial['num_stars']; ?>"/>
+				<meta itemprop="ratingValue" content="<?php echo easy_t_clean_html($testimonial['num_stars']); ?>"/>
 				<meta itemprop="bestRating" content="5"/>
 				<?php			
 					$x = 5; //total available stars
@@ -1604,8 +1863,9 @@ function easy_testimonials_build_metadata_html($testimonial, $author_class, $sho
 //passed a string
 //finds a matching theme or loads the theme currently selected on the options page
 //returns appropriate class name string to match theme
-function easy_t_get_theme_class($theme_string){	
-	$the_theme = get_option('testimonials_style');
+//if return_theme_base is true, returns the base string of the theme (without the style modifier)
+function easy_t_get_theme_class($theme_string, $return_theme_base = false){	
+	$the_theme = get_option('testimonials_style', 'default_style');
 	
 	//load options
 	include("include/lib/config.php");			
@@ -1614,6 +1874,18 @@ function easy_t_get_theme_class($theme_string){
 	if(strlen($theme_string)>2){
 		//if the theme string is valid
 		if(in_array($theme_string, $theme_array)){			
+			//if returning theme base for pro themes, go ahead and do so now
+			if( $return_theme_base ){
+				//loop through the pro theme array
+				foreach( $pro_theme_array as $pro_theme_base => $this_pro_theme_array ) {
+					//if a matching key to our specific pro theme is found
+					if(isset($this_pro_theme_array[$theme_string])){
+						//return the base string of that pro theme, from the array
+						return $pro_theme_base;
+					}
+				}
+			}
+			
 			//use the theme string
 			$the_theme = $theme_string;
 		}
@@ -1622,7 +1894,7 @@ function easy_t_get_theme_class($theme_string){
 	//remove style from the middle of our theme options and place it as a prefix
 	//matching our CSS files
 	$the_theme = str_replace('-style', '', $the_theme);
-	$the_theme = "style-" . $the_theme;	
+	$the_theme = "style-" . $the_theme;
 	
 	return $the_theme;
 }
@@ -1684,9 +1956,18 @@ function easy_testimonials_admin_init($hook)
 		wp_register_style( 'easy_testimonial_style', plugins_url('include/css/style.css', __FILE__) );
 		wp_enqueue_style( 'easy_testimonial_style' );
 		
-		//pro themes
-		wp_register_style( 'easy_testimonials_pro_styles', plugins_url('include/css/easy_testimonials_pro.css', __FILE__) );
-		wp_enqueue_style( 'easy_testimonials_pro_styles' );
+		//register and enqueue pro themes for preview purposes
+		easy_t_register_pro_themes();
+		wp_enqueue_style( 'bubble_style' );
+		wp_enqueue_style( 'avatar-right-style' );
+		wp_enqueue_style( 'avatar-right-style-50x50' );
+		wp_enqueue_style( 'avatar-left-style' );
+		wp_enqueue_style( 'avatar-left-style-50x50' );
+		wp_enqueue_style( 'card_style' );
+		wp_enqueue_style( 'elegant_style' );
+		wp_enqueue_style( 'business_style' );
+		wp_enqueue_style( 'modern_style' );
+		wp_enqueue_style( 'notepad_style' );
 	}
 	
 	// also include some styles on *all* admin pages
@@ -1699,19 +1980,25 @@ function easy_testimonials_admin_init($hook)
 //check for installed plugins with known conflicts
 //if any are found, display appropriate messaging with suggested steps
 //currently only checks for woothemes testimonials
-function easy_testimonials_conflict_check($hook_suffix){		
-	include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+function easy_testimonials_conflict_check($hook_suffix){
+	/* WooThemes Testimonials Check */
+	include_once( ABSPATH . 'wp-admin/includes/plugin.php' );	
+	$woothemes_testimonials = "testimonials-by-woothemes/woothemes-testimonials.php";
 	
-	$plugin = "testimonials-by-woothemes/woothemes-testimonials.php";
-		
-	if(is_plugin_active($plugin)){
-		
+	if(is_plugin_active($woothemes_testimonials)){//woothemes testimonials found		
 		if (strpos($hook_suffix,'easy-testimonials') !== false) {
 			add_action('admin_notices', 'easy_t_woothemes_testimonials_admin_notice');
 		}
 	}
-	else {
-		return false;
+	
+	/* Avada Check */
+	$my_theme = wp_get_theme();
+	if( strpos( $my_theme->get('Name'), "Avada" ) === 0 ) {
+		// looks like we are using Avada! 
+		// make sure we have avada compatibility enabled. If not, show a warning!
+		if(!get_option('easy_t_avada_filter_override', false)){
+			add_action('admin_notices', 'easy_t_avada_admin_notice');
+		}
 	}
 }
 
@@ -1719,6 +2006,13 @@ function easy_testimonials_conflict_check($hook_suffix){
 function easy_t_woothemes_testimonials_admin_notice(){
 	echo '<div class="error"><p>';
 	echo '<strong>ALERT:</strong> We have detected that Testimonials by WooThemes is installed.<br/><br/>  This plugin has known conflicts with Easy Testimonials. To prevent any issues, we recommend deactivating Testimonials by WooThemes while using Easy Testimonials.';
+	echo "</p></div>";
+}
+
+//output warning message about avada conflicts
+function easy_t_avada_admin_notice() {
+	echo '<div class="error"><p>';
+	echo '<strong>ALERT:</strong> Easy Testimonials has detected that Avada by Theme Fusion is installed.<br/><br/>  To ensure compatibility, please <a href="?page=easy-testimonials-settings#compatibility_options">visit our Compatibility Options</a> on the Basic Settings tab and verify that "Override Avada Blog Post Content Filter on Testimonials" is checked.';
 	echo "</p></div>";
 }
 
@@ -1787,7 +2081,10 @@ function add_hello_t_testimonials(){
 		$response = json_decode($response['body']);
 		
 		if(isset($response->testimonials)){
+			$testimonial_author_id = get_option('easy_t_testimonial_author', 1);
+			
 			foreach($response->testimonials as $testimonial){				
+				
 				//look for a testimonial with the same HTID
 				//if not found, insert this one
 				$args = array(
@@ -1806,17 +2103,11 @@ function add_hello_t_testimonials(){
 					//insert the testimonials
 					
 					//defaults
-					$the_name = '';
-					$the_rating = 5;
-		
-					if (isset ($testimonial->name)) {
-						$the_name = $testimonial->name;
-					}
-					
-					//assumes rating is always out of 5
-					if (isset ($testimonial->rating)) {
-						$the_rating = $testimonial->rating;
-					}
+					$the_name = isset( $testimonial->name ) ? $testimonial->name : '';
+					$the_rating = isset( $testimonial->rating ) ? $testimonial->rating : 5;
+					$the_position = isset( $testimonial->position ) ? $testimonial->position : '';
+					$the_item_reviewed = isset( $testimonial->item_reviewed ) ? $testimonial->item_reviewed : '';
+					$the_email = isset( $testimonial->email ) ? $testimonial->email : '';
 					
 					$tags = array();
 				   
@@ -1826,14 +2117,19 @@ function add_hello_t_testimonials(){
 						'post_category' => array(1),  // custom taxonomies too, needs to be an array
 						'tags_input'    => $tags,
 						'post_status'   => 'publish',
-						'post_type'     => 'testimonial'
+						'post_type'     => 'testimonial',
+						'post_date'		=> $testimonial->publish_time,
+						'post_author' 	=> $testimonial_author_id
 					);
 				
 					$new_id = wp_insert_post($post);
 				   
-					update_post_meta( $new_id, '_ikcf_client', $the_name );
-					update_post_meta( $new_id, '_ikcf_rating', $the_rating );
-					update_post_meta( $new_id, '_ikcf_htid', $testimonial->id );
+					update_post_meta( $new_id,	'_ikcf_client',		$the_name );
+					update_post_meta( $new_id,	'_ikcf_rating',		$the_rating );
+					update_post_meta( $new_id,	'_ikcf_htid',		$testimonial->id );
+					update_post_meta( $new_id,	'_ikcf_position',	$the_position );
+					update_post_meta( $new_id,	'_ikcf_other',		$the_item_reviewed );
+					update_post_meta( $new_id,	'_ikcf_email',		$the_email );
 				   
 					$inserted = true;
 					
@@ -2010,20 +2306,18 @@ function enqueue_webfonts()
 }
 
 /* add customized continue reading link to testimonials, if set */
-function easy_t_excerpt_more( $more ) {
+function easy_t_excerpt_more( $more, $the_post = false ) {
 	global $post;
 	
-	//if this is a testimonial, use our customization
-	if($post->post_type == 'testimonial'){		
-		if(get_option('easy_t_link_excerpt_to_full', false)){
-			return ' <a class="more-link" href="' . get_permalink( get_the_ID() ) . '">' . get_option('easy_t_excerpt_text') . '</a>';
-		} else {
-			return ' ' . get_option('easy_t_excerpt_text');
-		}			
-	} else {
-	//otherwise, return the currently set $more value
-		return $more;
+	if ( empty($the_post) ) {
+		$the_post = $post;
 	}
+
+	if(get_option('easy_t_link_excerpt_to_full', false)){
+		return ' <a class="more-link" href="' . get_permalink( $the_post->ID ) . '">' . get_option('easy_t_excerpt_text') . '</a>';
+	} else {
+		return ' ' . get_option('easy_t_excerpt_text');
+	}			
 }
 //checks to see if this is a testimonial
 //if it is, loads custom excerpt length and uses it
@@ -2267,6 +2561,9 @@ if( is_admin() && ( empty($_REQUEST['post_type']) || $_REQUEST['post_type'] !== 
 	$EasyT_MediaButton->add_button('List of Testimonials',  $testimonials_shortcode, 'listtestimonialswidget', 'testimonial');
 	$EasyT_MediaButton->add_button('Grid of Testimonials',  $testimonials_grid_shortcode, 'testimonialsgridwidget', 'testimonial');
 	$EasyT_MediaButton->add_button('Testimonial Cycle',  $testimonials_cycle_shortcode, 'cycledtestimonialwidget', 'testimonial');
+	if (isValidKey()) {
+		$EasyT_MediaButton->add_button('Testimonial Form',  $submit_testimonial_shortcode, 'submittestimonialwidget', 'testimonial');
+	}
 }
 
 // load Janus
@@ -2280,7 +2577,7 @@ add_filter( "plugin_action_links_{$plugin}", 'add_settings_link_to_plugin_action
 add_filter( 'plugin_row_meta', 'add_custom_links_to_plugin_description', 10, 2 );	
 
 //add our function to customize the excerpt, if enabled
-add_filter( 'excerpt_more', 'easy_t_excerpt_more', 9999 );
+//add_filter( 'excerpt_more', 'easy_t_excerpt_more', 9999 );
 add_filter( 'excerpt_length', 'easy_t_excerpt_length', 9999 );
 
 //override content filter on single testimonial pages 
@@ -2292,9 +2589,163 @@ if (isValidKey()) {
 	add_action( 'wp_dashboard_setup', 'easy_t_add_dashboard_widget');		
 }
 
+//add query var for paging
+add_filter( 'query_vars', 'easy_t_add_pagination_query_var' );
+
 //flush rewrite rules - only do this once!
 register_activation_hook( __FILE__, 'easy_testimonials_rewrite_flush' );
 
+/* Avada Compatibility */
+// maybe also an alert like "hey it looks like you are using avada maybe you should enable this...."
+// first override blog post content function by avada to prevent it running on testimonials
+// then apply our own content filter instead
+if(get_option('easy_t_avada_filter_override', false)){
+	add_action('avada_blog_post_content', 'easy_t_avada_content_filter');//attach our custom content filter to their action that will use our styling
+	
+	//make our own version of the avada blog post content function that doesn't run if the current post type is a testimonial
+	//since avada uses !function_exists correctly, our function will be declared first and will win!
+	if ( ! function_exists( 'avada_render_blog_post_content' ) ) {
+		function avada_render_blog_post_content() {
+			global $post;
+			if($post->post_type != "testimonial"){
+				if ( is_search() && Avada()->settings->get( 'search_excerpt' ) ) {
+					return;
+				}
+				echo fusion_get_post_content();
+			}
+		}
+	}
+	
+	//make our own version of the avada post title function that doesn't run if the current post type is a testimonial
+	if ( ! function_exists( 'avada_render_post_title' ) ) {
+		function avada_render_post_title( $post_id = '', $linked = TRUE, $custom_title = '', $custom_size = '2' ) {
+			global $post;
+			if($post->post_type != "testimonial"){
+				$entry_title_class = '';
+
+				// Add the entry title class if rich snippets are enabled
+				if ( ! Avada()->settings->get( 'disable_date_rich_snippet_pages' ) ) {
+					$entry_title_class = ' class="entry-title"';
+				}
+
+				// If we have a custom title, use it
+				if ( $custom_title ) {
+					$title = $custom_title;
+				// Otherwise get post title
+				} else {
+					$title = get_the_title( $post_id );
+				}
+
+				// If the post title should be linked at the markup
+				if ( $linked ) {
+					$link_target = '';
+					if( fusion_get_page_option( 'link_icon_target', $post_id ) == 'yes' ||
+						fusion_get_page_option( 'post_links_target', $post_id ) == 'yes' ) {
+						$link_target = ' target="_blank"';
+					}
+
+					$title = sprintf( '<a href="%s"%s>%s</a>', get_permalink( $post_id ), $link_target, $title );
+				}
+
+				// Setup the HTML markup of the post title
+				$html = sprintf( '<h%s%s>%s</h%s>', $custom_size, $entry_title_class, $title, $custom_size );
+
+
+				return $html;
+			}
+		}
+	}
+}
+function easy_t_avada_content_filter(){
+	global $post;
+	
+	if($post->post_type == 'testimonial'){
+		the_content();
+	}
+}
+
+	/* excerpt update 4.14 */
+	/* Keep the extra info we've added with the_content filter from appearing in the excerpt*/
+	add_filter('get_the_excerpt', 'easy_t_fix_testimonial_excerpts');
+
+	function easy_t_fix_testimonial_excerpts($excerpt)
+	{
+		global $post;
+	
+		$post = get_post();
+		
+		// if not a testimonial, move on
+		if ( empty( $post ) || $post->post_type !== 'testimonial' ) {
+			return $excerpt;
+		}
+		
+		return easy_t_trim_excerpt($excerpt, $post);
+	}
+
+	/**
+	 * Our own version of wp_trim_excerpt that:
+	*    1) can be run on any post (instead of only the global)
+	*    2) doesn't run the_content filter
+	*
+	*  Else all is the same (runs all the normal filters, etc).
+	*
+	*  @param	$text	Excerpt, which will likely be empty. If empty, 
+	*					it wil be generated in the normal way, except 
+	*					without running the_content filter.
+	*
+	*  @param	$post	The post to use for the excerpt. If not provided, 
+	*					global $post is used
+	*
+	*  @return	string	The excerpt (after wp_trim_excerpt has been applied).
+	*
+	*/
+	function easy_t_trim_excerpt( $text = '', $post = false ) {
+		if (!$post) {
+			$post = get_post();
+		}
+		
+        $raw_excerpt = $text;
+
+        if ( '' == $text ) {
+                $text = $post->post_content;				
+                $text = strip_shortcodes( $text );
+
+                /** This filter is documented in wp-includes/post-template.php */
+                //$text = apply_filters( 'the_content', $text );
+                $text = str_replace(']]>', ']]&gt;', $text);
+
+                /**
+                 * Filter the number of words in an excerpt.
+                 *
+                 * @since 2.7.0
+                 *
+                 * @param int $number The number of words. Default 55.
+                 */
+                $excerpt_length = apply_filters( 'excerpt_length', 55 );
+                /**
+                 * Filter the string in the "more" link displayed after a trimmed excerpt.
+                 *
+                 * @since 2.9.0
+                 *
+                 * @param string $more_string The string shown within the more link.
+                 */
+				add_filter( 'excerpt_more', 'easy_t_excerpt_more', 9999, 2 );
+				$excerpt_more = easy_t_excerpt_more( '' , $post );
+                $excerpt_more = apply_filters( 'excerpt_more', $excerpt_more );
+                $text = wp_trim_words( $text, $excerpt_length, $excerpt_more );
+				remove_filter( 'excerpt_more', 'easy_t_excerpt_more', 9999 );
+        }
+        /**	
+         * Filter the trimmed excerpt string.
+         *
+         * @since 2.8.0
+         *
+         * @param string $text        The trimmed text.
+         * @param string $raw_excerpt The text prior to trimming.
+         */
+        return apply_filters( 'wp_trim_excerpt', $text, $raw_excerpt );
+	}
+	
 // create an instance of BikeShed that we can use later
 if (is_admin()) {
 	global $EasyT_BikeShed;
