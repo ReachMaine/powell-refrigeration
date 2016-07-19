@@ -28,12 +28,12 @@ Version:        1.0
   font-size: 18px;
   font-weight: bold; }
 
-/* blockquote img.attachment-easy_testimonial_thumb.size-easy_testimonial_thumb.wp-post-image {
-	width: 175px;
-	max-width: 175px;
-	max-height: 175px;
-}
-*/
+div.easy_t_single_testimonial blockquote {
+  display: flex;
+  flex-wrap: wrap; }
+  div.easy_t_single_testimonial blockquote img {
+    order: 2; }
+
 .widget-icon-box .icon-box {
   background-color: rgba(255, 255, 255, 0.7);
   padding: 5px;
