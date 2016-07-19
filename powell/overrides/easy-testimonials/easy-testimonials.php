@@ -23,7 +23,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Easy Testimonials .  If not, see <http://www.gnu.org/licenses/>.
 */
-
+/*
+* zig - make thumbnail 100 x 100 by using thumbnail as image size.
+*/
 global $easy_t_footer_css_output;
 
 require_once('include/lib/lib.php');
@@ -1742,8 +1744,8 @@ function build_testimonial_image($postid){
 	$testimonial_image_size = isValidKey() ? get_option('easy_t_image_size') : "easy_testimonial_thumb";
 	if(strlen($testimonial_image_size) < 2){
 		$testimonial_image_size = "easy_testimonial_thumb";		
-		$width = 100;
-        $height = 100;
+		$width = 100; // zig, was 50
+        $height = 100; // zig was 50.
 	} else {		
 		//one of the default sizes, load using get_option
 		if( in_array( $testimonial_image_size, array( 'thumbnail', 'medium', 'large' ) ) ){
@@ -1765,7 +1767,7 @@ function build_testimonial_image($postid){
 	$size = ($width > $height) ? $width : $height;
 
 	//load testimonial's featured image
-	//$image = get_the_post_thumbnail($postid, $testimonial_image_size);
+	//$image = get_the_post_thumbnail($postid, $testimonial_image_size); zout
 
 	$image = get_the_post_thumbnail($postid, "thumbnail");
 	
