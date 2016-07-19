@@ -1,0 +1,22 @@
+/* ----  Media Settings --------------------------------- */
+@media (max-width: 979px) { // break for nav button
+	
+	
+}
+@media (max-width: 776px) { // break 
+	.hide-mobile {
+		display: none;
+		visibility: hidden;
+		height: 0px;
+		width: 0px;
+		padding: 0px;
+		margin:0px;
+	}
+}
+@media (min-width: 481px) {
+	
+}
+@media (max-width: 416px) { // break 
+	
+}
+/* end Media Settings ------------------------------------------ */

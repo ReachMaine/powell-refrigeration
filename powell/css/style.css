@@ -1,0 +1,145 @@
+/*
+Theme Name:     Powell 
+Description:    Theme for Powell Refrigeration
+Author:         Reach Maine
+Template:       buildpress
+Version:        1.0
+*/
+/* add custom CSS code bellow */
+/* Colors ---------------------------------------------- */
+/* Typography ------------------------------------------ */
+/* ------------------ Reach stuff ---------------------*/
+/* used with reach branding, usually in copyright footer.
+<a class="reach-logo" href="https://www.reachmaine.com/">R<i style="color: #f58220">EA</i>CH Maine</a>
+*/
+.reach-logo:before {
+  content: url("images/reach-favicon.png");
+  padding-right: 3px; }
+
+.logo {
+  margin: 15px 0px; }
+
+.pr-services ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  list-style-type: none;
+  padding: 0px;
+  font-size: 18px;
+  font-weight: bold; }
+
+/* blockquote img.attachment-easy_testimonial_thumb.size-easy_testimonial_thumb.wp-post-image {
+	width: 175px;
+	max-width: 175px;
+	max-height: 175px;
+}
+*/
+.widget-icon-box .icon-box {
+  background-color: rgba(255, 255, 255, 0.7);
+  padding: 5px;
+  border-radius: 5px;
+  text-align: center; }
+
+.widget-icon-box .icon-box i {
+  display: inline-block;
+  float: none; }
+
+html.flexbox .widget-icon-box .icon-box .icon-box__text {
+  display: inline-block;
+  margin-left: 0px; }
+
+h4.icon-box__title {
+  color: #1e73be;
+  font-size: 18px; }
+
+.icon-box__subtitle {
+  font-weight: bold;
+  font-size: 20px; }
+
+.easy-t-slideshow-wrap .easy_t_single_testimonial {
+  display: inline-block;
+  max-width: 525px;
+  min-width: 300px;
+  vertical-align: top; }
+
+.cycle-slide-active {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: space-around; }
+
+p, li {
+  font-size: 1.2em; }
+
+.testimonial_slide p {
+  font-size: 1em; }
+
+.testimonial-client {
+  font-weight: bold; }
+
+.testimonial-position {
+  display: block;
+  font-weight: bold;
+  color: #666; }
+
+button.navbar-toggle {
+  background-color: #00264D; }
+
+.navbar-toggle__text, .navbar-toggle__icon-bar {
+  color: #fff; }
+
+.navbar-toggle .icon-bar {
+  background: white; }
+
+@media (max-width: 991px) {
+  .navigation--main.js-dropdown {
+    background-color: #00264D; } }
+/* ** styling for contact form 7  ** */
+.wpcf7-form .powell-contact {
+  max-width: 100%; }
+.wpcf7-form .wpcf7-form-control-wrap {
+  padding-left: 50px; }
+  .wpcf7-form .wpcf7-form-control-wrap select,
+  .wpcf7-form .wpcf7-form-control-wrap textarea,
+  .wpcf7-form .wpcf7-form-control-wrap input[type="url"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="tel"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="text"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="email"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="password"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="search"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="date"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="number"] {
+    margin-bottom: 0px;
+    padding: 0px;
+    padding-left: 12px;
+    line-height: 50px; }
+
+.wpcf7-form .wpcf7-form-control-wrap:before {
+  background-color: #1e73be;
+  font-family: FontAwesome;
+  content: "\f044";
+  display: inline-block;
+  position: absolute;
+  left: 0;
+  width: 50px;
+  height: 50px;
+  font-size: 24px;
+  line-height: 50px;
+  text-align: center;
+  color: #fff; }
+
+.wpcf7-form-control-wrap.your-name:before {
+  content: "\f007"; }
+
+.wpcf7-form-control-wrap.your-email:before {
+  content: "\f0e0"; }
+
+/* ----  Media Settings --------------------------------- */
+@media (max-width: 776px) {
+  .hide-mobile {
+    display: none;
+    visibility: hidden;
+    height: 0px;
+    width: 0px;
+    padding: 0px;
+    margin: 0px; } }
+/* end Media Settings ------------------------------------------ */

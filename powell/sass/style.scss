@@ -1,0 +1,110 @@
+/*
+Theme Name:     Powell 
+Description:    Theme for Powell Refrigeration
+Author:         Reach Maine
+Template:       buildpress
+Version:        1.0
+*/
+
+/* add custom CSS code bellow */
+@import "partials/settings";
+
+.logo {
+	margin: 15px 0px;
+}
+
+.pr-services ul {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-around;
+	list-style-type: none;
+	padding: 0px;
+	font-size: 18px;
+	font-weight: bold;
+}
+
+/* blockquote img.attachment-easy_testimonial_thumb.size-easy_testimonial_thumb.wp-post-image {
+	width: 175px;
+	max-width: 175px;
+	max-height: 175px;
+}
+*/
+
+.widget-icon-box .icon-box {
+	background-color: rgba(255, 255, 255, 0.7);
+	padding: 5px;
+	border-radius: 5px;
+	text-align: center;
+}
+
+.widget-icon-box .icon-box i {
+	display: inline-block;
+	float: none;
+}
+
+html.flexbox .widget-icon-box .icon-box .icon-box__text {
+	display: inline-block;
+	margin-left: 0px;
+}
+
+h4.icon-box__title {
+	color: #1e73be;
+	font-size: 18px;
+}
+
+.icon-box__subtitle {
+	font-weight: bold;
+	font-size: 20px;
+}
+
+.easy-t-slideshow-wrap .easy_t_single_testimonial {
+	display: inline-block;
+	max-width: 525px;
+	min-width: 300px;
+	vertical-align: top;
+}
+
+.cycle-slide-active {
+	display: flex !important;
+	flex-wrap: wrap;
+	justify-content: space-around;
+}
+
+p, li {
+	font-size: 1.2em;
+}
+
+.testimonial_slide p {
+	font-size: 1em;
+}
+
+.testimonial-client {
+	font-weight: bold;
+}
+
+.testimonial-position {
+	display: block;
+	font-weight: bold;
+	color: #666;
+}
+
+button.navbar-toggle {
+	background-color: #00264D;
+}
+
+.navbar-toggle__text, .navbar-toggle__icon-bar, {
+	color: #fff;
+}
+
+.navbar-toggle .icon-bar {
+	background: white;
+}
+
+@media (max-width: 991px) {
+	.navigation--main.js-dropdown {
+	background-color:#00264D;
+}
+}
+
+@import "partials/cf7";
+@import "partials/media"; 

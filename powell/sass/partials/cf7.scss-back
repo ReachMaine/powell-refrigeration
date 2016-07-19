@@ -1,0 +1,58 @@
+/* ** styling for contact form 7  ** */
+
+.wpcf7-form {
+	.powell-contact {
+		max-width: 100%;
+	}
+	.wpcf7-form-control-wrap {
+		//height: 50px;
+	   // padding: 12px 10px 12px 65px;
+	   padding-left: 50px;
+
+		select, 
+		textarea, 
+		input[type="url"], 
+		input[type="tel"], 
+		input[type="text"], 
+		input[type="email"], 
+		input[type="password"], 
+		input[type="search"], 
+		input[type="date"], 
+		input[type="number"] {
+			margin-bottom: 0px;
+			//padding: 12px;
+			padding: 0px;
+			padding-left: 12px;
+			line-height: 50px;
+		}
+	}
+	.wpcf7-submit {
+	    //display: inline-block !important;
+	}
+}
+
+
+ .wpcf7-form .wpcf7-form-control-wrap:before{
+	background-color: #1e73be; // $primary
+    font-family: FontAwesome;
+    content: "\f044";
+    display: block;
+    position: absolute;
+    left: 0;
+    //top: 0;
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    line-height: 50px;
+    text-align: center;
+    color: #fff;
+    //margin-top: -1px;
+} 
+
+.wpcf7-form-control-wrap.your-name:before {
+	content: "\f007";
+}
+
+.wpcf7-form-control-wrap.your-email:before {
+	content: "\f0e0";
+} 

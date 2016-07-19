@@ -1,0 +1,18 @@
+/* Colors ---------------------------------------------- */
+// Font Colors
+$primary: #1e73be; // set in theme options.
+// Background colors: 
+
+$facebook-blue: #3b579d;
+//#ad2424 #ad2424
+/* Typography ------------------------------------------ */
+
+
+/* ------------------ Reach stuff ---------------------*/
+/* used with reach branding, usually in copyright footer.
+<a class="reach-logo" href="https://www.reachmaine.com/">R<i style="color: #f58220">EA</i>CH Maine</a>
+*/
+.reach-logo:before {
+	content: url('images/reach-favicon.png');
+	padding-right: 3px;
+}

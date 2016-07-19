@@ -1,0 +1,39 @@
+/* ** styling for contact form 7  ** */
+.wpcf7-form .powell-contact {
+  max-width: 100%; }
+.wpcf7-form .wpcf7-form-control-wrap {
+  padding-left: 50px; }
+  .wpcf7-form .wpcf7-form-control-wrap select,
+  .wpcf7-form .wpcf7-form-control-wrap textarea,
+  .wpcf7-form .wpcf7-form-control-wrap input[type="url"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="tel"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="text"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="email"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="password"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="search"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="date"],
+  .wpcf7-form .wpcf7-form-control-wrap input[type="number"] {
+    margin-bottom: 0px;
+    padding: 0px;
+    padding-left: 12px;
+    line-height: 50px; }
+
+.wpcf7-form .wpcf7-form-control-wrap:before {
+  background-color: #1e73be;
+  font-family: FontAwesome;
+  content: "\f044";
+  display: inline-block;
+  position: absolute;
+  left: 0;
+  width: 50px;
+  height: 50px;
+  font-size: 24px;
+  line-height: 50px;
+  text-align: center;
+  color: #fff; }
+
+.wpcf7-form-control-wrap.your-name:before {
+  content: "\f007"; }
+
+.wpcf7-form-control-wrap.your-email:before {
+  content: "\f0e0"; }
