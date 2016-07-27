@@ -1,0 +1,2 @@
+Notes to track changes not in code or styling.
+27July16 zig - update to buildpress theme V4.0.0
