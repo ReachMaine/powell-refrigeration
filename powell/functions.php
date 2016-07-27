@@ -53,7 +53,10 @@ function enqueue_parent_theme_style() {
 		add_image_size('facebook_share_vert', 246, 470, true);
 
 	}
-
+	add_action('wp_enqueue_scripts', 'reach_scripts', 100);
+	function reach_scripts() {
+			wp_deregister_script( 'buildpress-gmaps' ); // not using google maps, deregister the js
+	}
 	
 	add_filter('wpseo_opengraph_image_size', 'mysite_opengraph_image_size');
 	function mysite_opengraph_image_size($val) {
