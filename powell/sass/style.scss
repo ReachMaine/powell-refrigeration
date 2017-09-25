@@ -1,5 +1,5 @@
 /*
-Theme Name:     Powell 
+Theme Name:     Powell
 Description:    Theme for Powell Refrigeration
 Author:         Reach Maine
 Template:       buildpress
@@ -12,7 +12,9 @@ Version:        1.0
 .logo {
 	margin: 15px 0px;
 }
-
+.main-title__secondary {
+	line-height: 1.5em;
+}
 .pr-services ul {
 	display: flex;
 	flex-wrap: wrap;
@@ -108,4 +110,4 @@ button.navbar-toggle {
 }
 
 @import "partials/cf7";
-@import "partials/media"; 
+@import "partials/media";

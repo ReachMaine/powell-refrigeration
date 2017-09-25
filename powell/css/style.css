@@ -1,5 +1,5 @@
 /*
-Theme Name:     Powell 
+Theme Name:     Powell
 Description:    Theme for Powell Refrigeration
 Author:         Reach Maine
 Template:       buildpress
@@ -12,12 +12,21 @@ Version:        1.0
 /* used with reach branding, usually in copyright footer.
 <a class="reach-logo" href="https://www.reachmaine.com/">R<i style="color: #f58220">EA</i>CH Maine</a>
 */
+body, .textwidget {
+  color: #5D5D5D !important; }
+
 .reach-logo:before {
   content: url("images/reach-favicon.png");
   padding-right: 3px; }
 
+.entry-content p {
+  font-size: 1.3em; }
+
 .logo {
   margin: 15px 0px; }
+
+.main-title__secondary {
+  line-height: 1.5em; }
 
 .pr-services ul {
   display: flex;
@@ -134,6 +143,10 @@ button.navbar-toggle {
   content: "\f0e0"; }
 
 /* ----  Media Settings --------------------------------- */
+@media (min-width: 992px) {
+  .main-title {
+    padding-top: 60px;
+    padding-bottom: 30px; } }
 @media (max-width: 776px) {
   .hide-mobile {
     display: none;
