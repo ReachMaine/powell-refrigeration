@@ -22,6 +22,24 @@ body, .textwidget {
 .entry-content p {
   font-size: 1.3em; }
 
+/* gravity forms styling */
+.gform_wrapper .gfield.hide-label label {
+  display: none; }
+.gform_wrapper .gform_footer input[type=submit] {
+  display: flex;
+  justify-content: flex-end;
+  color: white;
+  border: 3px solid #1e73be;
+  padding: 6px 20px;
+  font-size: 20px !important;
+  text-align: center;
+  cursor: pointer;
+  background-color: #1e73be; }
+.gform_wrapper .gform_footer input[type=submit]:hover {
+  background-color: #155b98;
+  color: white;
+  border-color: #1e73be; }
+
 .logo {
   margin: 15px 0px; }
 
